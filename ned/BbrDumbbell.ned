@@ -3,16 +3,6 @@ import inet.node.inet.StandardHost;
 import inet.node.inet.Router;
 import ned.DatarateChannel;
 
-// Two-flow dumbbell for BBRv1 vs Reno/NewReno experiments.
-//
-// clientB --1ms--\
-//                 router1 == 40Mbps / 3ms == router2 --1ms-- serverB
-// clientR --1ms--/                                      \--1ms-- serverR
-//
-// One-way propagation delay = 1 + 3 + 1 = 5 ms
-// Base RTT = 10 ms
-// BDP at 40 Mbps = 40e6 * 0.01 / 8 = 50,000 bytes ~= 34 packets (1500 B)
-
 network BbrDumbbell
 {
     types:
@@ -24,8 +14,8 @@ network BbrDumbbell
 
         channel BottleneckLink extends DatarateChannel
         {
-            datarate = 40Mbps;
-            delay = 3ms;
+            datarate = 10Mbps;
+            delay = 18ms;
         }
 
     submodules:
