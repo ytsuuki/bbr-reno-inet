@@ -1,0 +1,14 @@
+out/
+results/
+.settings/
+bin/
+*.so
+*.o
+*.a
+*.dylib
+*.dll
+*.exe
+*.sca
+*.vec
+*.vci
+.DS_Store
