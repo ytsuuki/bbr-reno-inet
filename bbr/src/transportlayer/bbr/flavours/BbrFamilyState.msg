@@ -44,6 +44,11 @@ struct BbrFamilyStateVariables extends TcpTahoeRenoFamilyStateVariables
     double m_pacingGain = 0;
     double m_cWndGain = 0;
     double m_highGain = 2.89; //Constant
+    double m_cwndGainProbeBW = 2.0; //newly added
+    double m_cwndGainProbeRTT = 1.0; //newly added
+    uint32_t m_initialCwndMss = 4; //newly added
+    uint32_t m_sendQuantumMss = 1; //newly added
+    
     
     simtime_t m_minRtt = SIMTIME_MAX;
     simtime_t m_minRttStamp = 0;

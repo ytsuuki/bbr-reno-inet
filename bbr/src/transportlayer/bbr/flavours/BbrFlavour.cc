@@ -71,15 +71,46 @@ void BbrFlavour::initialize()
 {
     BbrFamily::initialize();
 }
+void BbrFlavour::readParameters()//newly added
+{
+    Tcp *tcpMain = conn->getTcpMain();
+    if (tcpMain == nullptr)
+        return;
+
+    auto getD = [&](const char *n, double def) {
+        return tcpMain->hasPar(n) ? tcpMain->par(n).doubleValue() : def;
+    };
+    auto getI = [&](const char *n, long def) {
+        return tcpMain->hasPar(n) ? (long)tcpMain->par(n).intValue() : def;
+    };
+
+    state->m_highGain             = getD("bbrHighGain",          state->m_highGain);
+    state->m_cwndGainProbeBW      = getD("bbrCwndGain",          state->m_cwndGainProbeBW);
+    state->m_cwndGainProbeRTT     = getD("bbrCwndGainProbeRtt",  state->m_cwndGainProbeRTT);
+    state->m_initialCwndMss       = getI("bbrInitialCwndMss",    state->m_initialCwndMss);
+    state->m_sendQuantumMss       = getI("bbrSendQuantumMss",    state->m_sendQuantumMss);
+    state->m_bandwidthWindowLength= getI("bbrBwWindowRounds",    state->m_bandwidthWindowLength);
+    state->m_probeRttDuration     = SimTime(getD("bbrProbeRttDuration", state->m_probeRttDuration.dbl()));
+    state->m_minRttFilterLen      = SimTime(getD("bbrMinRttFilterLen",  state->m_minRttFilterLen.dbl()));
+    state->m_pacingMargin         = getD("bbrPacingMargin",      state->m_pacingMargin);
+
+    EV_INFO << "BBR parameters: highGain=" << state->m_highGain
+            << " cwndGain=" << state->m_cwndGainProbeBW
+            << " initialCwndMss=" << state->m_initialCwndMss
+            << " sendQuantumMss=" << state->m_sendQuantumMss
+            << " probeRttDuration=" << state->m_probeRttDuration
+            << " bwWindowRounds=" << state->m_bandwidthWindowLength << "\n";
+}
 
 void BbrFlavour::established(bool active)
 {
+    readParameters();//newly added
     if(!state->m_isInitialized){
         // Keep probe phase randomness reproducible while separating flows.
         gen.seed(makeDeterministicConnectionSeed(conn));
         dynamic_cast<BbrConnection*>(conn)->changeIntersendingTime(0.0000001); //do not pace intial packets as RTT is unknown
 
-        state->snd_cwnd = 4 * state->snd_mss; // RFC 2001
+        state->snd_cwnd = state->m_initialCwndMss * state->snd_mss; // RFC 2001  newly modified
         state->m_minRtt = state->srtt != 0 ? state->srtt : SIMTIME_MAX;
         state->m_minRttStamp = simTime();
         state->m_initialCWnd = state->snd_cwnd;
@@ -87,8 +118,8 @@ void BbrFlavour::established(bool active)
         state->m_priorCwnd = state->snd_cwnd;
         recalculateSlowStartThreshold();
         state->m_targetCWnd = state->snd_cwnd;
-        state->m_minPipeCwnd = 4 * state->m_segmentSize;
-        state->m_sendQuantum = 1 * state->m_segmentSize;
+        state->m_minPipeCwnd = 4 * state->m_sendQuantum * state->m_segmentSize;//modified
+        state->m_sendQuantum = state->m_sendQuantumMss * state->m_segmentSize;//modified
 
         initRoundCounting();
         initFullPipe();
@@ -472,7 +503,7 @@ void BbrFlavour::enterProbeBW()
 {
     setBbrState(BbrMode_t::BBR_PROBE_BW);
     state->m_pacingGain = 1;
-    state->m_cWndGain = 2;
+    state->m_cWndGain = state->m_cwndGainProbeBW;//modified
     std::uniform_int_distribution<> dist(0, 6);
     state->m_cycleIndex = GAIN_CYCLE_LENGTH - 1 - (int)dist(gen);
 
@@ -494,7 +525,7 @@ void BbrFlavour::enterProbeRTT()
 {
     setBbrState(BbrMode_t::BBR_PROBE_RTT);
     state->m_pacingGain = 1;
-    state->m_cWndGain = 1;
+    state->m_cWndGain = state->m_cwndGainProbeRTT;//modified
 
     EV_INFO   << " Entering ProbeRTT.  m_pacingGain = " << state->m_pacingGain << "m_cWndGain = " << state->m_highGain << "\n";
 
@@ -601,7 +632,7 @@ void BbrFlavour::setPacingRate(double gain)
 
 void BbrFlavour::setSendQuantum()
 {
-    state->m_sendQuantum = 1 * state->m_segmentSize;
+    state->m_sendQuantum = state->m_sendQuantumMss * state->m_segmentSize;//modified
 }
 
 void BbrFlavour::setCwnd()
