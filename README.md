@@ -79,58 +79,10 @@ exactly as before.
 
 ---
 
-## What the measurements show
+## Build order
 
-BBR's internal estimates, read directly from the exported vectors at 1 BDP:
-
-```text
-maxBandwidthFilter   median  9.69 Mbps   (bottleneck is 10.00; no sample exceeds it)
-minRtt               median 41.49 ms     (40 ms propagation + 1.2 ms serialisation)
-pacingGain share     1.25 : 0.75 : 1.0 = 14.9% : 12.1% : 73.0%   (nominal 12.5 / 12.5 / 75)
-estimatedBdp         median 50,247 B
-cwnd                 median 104,874 B
-```
-
-All the estimates are correct. But
+Each of the four projects is a standard OMNeT++ project. Build them in this order:
 
 ```text
-cwnd     = 2 x 50,247 + quanta = 104,874 B
-capacity = pipe (50,000) + queue (50,000) = 100,000 B
+inet4.5  ->  tcpPaced  ->  tcpGoodputApplications  ->  bbr
 ```
-
-The window is about 5% larger than the whole system. That is not an estimation error: it
-is what `cwnd_gain = 2.0` produces once the BDP estimate is accurate, at one BDP of
-buffering. The consequence is that the queue never empties and the competing Reno flow
-is starved.
-
-The outcome is correspondingly sensitive to the window. Sweeping `cwnd_gain` at 1 BDP:
-
-| `bbrCwndGain` | BBR share |
-|---|---|
-| 2.00 | 0.999 |
-| 1.80 | 0.926 |
-| 1.71 | 0.797 |
-| 1.60 | 0.633 |
-
-The paper reports 0.80 at one BDP. `gain = 1.71` reproduces it.
-
-Across buffer sizes we obtain 0.999 / 0.409 / 0.292 at 1 / 2 / 4 BDP, against the
-paper's 0.888 / 0.630 / 0.479.
-
----
-
-## Running
-
-```bash
-cd BbrDumbbell
-opp_run -u Cmdenv -c test \
-  -n .:/path/to/bbr/src:/path/to/inet4.5/src:/path/to/tcpPaced/src:/path/to/tcpGoodputApplications/src \
-  -l /path/to/bbr/src/bbr \
-  -l /path/to/inet4.5/src/INET \
-  -l /path/to/tcpGoodputApplications/src/tcpGoodputApplications \
-  -l /path/to/tcpPaced/src/tcpPaced \
-  omnetpp.ini
-```
-
-Build: each of the four projects is a standard OMNeT++ project; build them in the order
-`inet4.5` → `tcpPaced` → `tcpGoodputApplications` → `bbr`.
